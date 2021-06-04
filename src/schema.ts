@@ -49,3 +49,14 @@ class Relationship {
     this.notes = notes;
   }
 }
+
+export {
+  // Types
+  Cardinality,
+  // Classes
+  ResourceType,
+  ResourceTypeAttribute,
+  Relationship,
+  // Functions
+  FetchSchemaFromDb
+};
