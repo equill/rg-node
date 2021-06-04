@@ -50,6 +50,21 @@ class Relationship {
   }
 }
 
+
+function FetchSchemaFromDb(driver) {
+  console.log('Attempting to fetch the schema.');
+  var session = driver.session();
+  session
+    .run('MATCH (p:Category) RETURN p.name as name;')
+    .subscribe({
+      onKeys: keys => {console.log(`Fetched keys '${keys}'`)},
+      onNext: record => {console.log(`Fetched record '${record.get('name')}'`)},
+      onCompleted: () => {session.close()},
+      onError: error => {console.log(error)}
+    })
+}
+
+
 export {
   // Types
   Cardinality,
