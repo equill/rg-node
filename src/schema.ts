@@ -1,8 +1,8 @@
-class ResourceType {
+class SchemaResourceType {
   name: string;
   dependent: boolean;
   notes: string;
-  attributes: [ResourceTypeAttribute];
+  attributes: [SchemaResourceTypeAttribute];
   relationships: [string];
 
   constructor(name, dependent, notes, attributes, relationships) {
@@ -14,7 +14,7 @@ class ResourceType {
   }
 }
 
-class ResourceTypeAttribute {
+class SchemaResourceTypeAttribute {
   name: string;
   description: string;
   // "values" will need to be a union type at some point
@@ -27,17 +27,17 @@ class ResourceTypeAttribute {
   }
 }
 
-enum Cardinality {
+enum SchemaCardinality {
   OneToOne = "1:1",
   OnetoMany = "1:Many",
   ManyToOne = "Many:1",
   ManyToMany = "Many:Many",
 }
 
-class Relationship {
+class SchemaRelationship {
   name: string;
-  targetType: ResourceType;
-  cardinality: Cardinality;
+  targetType: SchemaResourceType;
+  cardinality: SchemaCardinality;
   dependent: boolean;
   notes: string;
 
@@ -67,11 +67,11 @@ function FetchSchemaFromDb(driver) {
 
 export {
   // Types
-  Cardinality,
+  SchemaCardinality,
   // Classes
-  ResourceType,
-  ResourceTypeAttribute,
-  Relationship,
+  SchemaResourceType,
+  SchemaResourceTypeAttribute,
+  SchemaRelationship,
   // Functions
   FetchSchemaFromDb
 };
