@@ -1,6 +1,7 @@
 // Incoming classes, for inserting new schemas
 
 class IncomingSchemaVersion {
+  readonly name: string;
   readonly version: number;
   readonly applyOrder: number;
   // resourceTypes is a map of string:object, where
@@ -9,7 +10,8 @@ class IncomingSchemaVersion {
   readonly resourceTypes: [IncomingResourceType];
   readonly relationships: [IncomingSchemaRelationship];
 
-  constructor({version, applyOrder, resourceTypes, relationships}) {
+  constructor({name, version, applyOrder, resourceTypes, relationships}) {
+    this.name = name;
     this.version = version;
     this.applyOrder = applyOrder;
     this.resourceTypes = resourceTypes;

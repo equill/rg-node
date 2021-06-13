@@ -7,6 +7,7 @@ import {
 } from './schema';
 
 const coreSchema = new IncomingSchemaVersion({
+  name: "core",
   version: 1,
   applyOrder: 0,
   resourceTypes: [
