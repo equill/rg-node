@@ -180,17 +180,59 @@ class SchemaRelationshipAttribute {
 
 // Functions and methods for interacting with the schema
 
+function InjectSchemaIntoDb(driver, schema: IncomingSchemaVersion) {
+  console.log(`Attempting to inject version ${schema.version} of schema ${schema.name}`);
+  const date = new Date;
+  const timestamp = date.getTime();
+
+  var session = driver.session();
+  // Insert the parent schema object via an autocommit transaction,
+  // and get a promise in return.
+  var insertSchemaParent = session.writeTransaction(async txc => {
+    // More than one statement can be run here
+    var result = await txc.run(
+      `CREATE (s:RgSchema {name: "${schema.name}", createddate: ${timestamp}}) RETURN s.name as name;`
+    )
+    // Here because it's mandatory to return _something_.
+    return result.records.map(record => record.get('name'))
+  })
+  //
+  // Consuming the resulting promise, also left here as a HOWTO:
+  insertSchemaParent
+    .then (namesArray => {
+      console.log(namesArray)
+    },
+           error => {
+      console.log(error);
+      session.close();
+    })
+    .catch(error => {
+      console.log(error);
+      session.close()
+    })
+}
+
+    /*
+  var insertSchemaVersion = session.writeTransaction(async txc => {
+    var svResult = await txc.run(`MATCH (s:RgSchema {name: "${schema.name}"}) CREATE (s)-[:VERSION]->(v:RgSchemaVersion);`)
+    return svResult.records
+  })
+  */
+
 function FetchSchemaFromDb(driver) {
   console.log('Attempting to fetch the schema.');
   var session = driver.session();
   session
     .run('MATCH (p:Category) RETURN p.name as name;')
-    .subscribe({
-      onKeys: keys => {console.log(`Fetched keys '${keys}'`)},
-      onNext: record => {console.log(`Fetched record '${record.get('name')}'`)},
-      onCompleted: () => {session.close()},
-      onError: error => {console.log(error)}
+    .then(result => {
+      result.records.forEach(record => {
+        console.log(`Fetched record '${record.get('name')}'`)
+      })
     })
+    .catch(error => {
+      console.log(error);
+    })
+    .then(session.close());
 }
 
 
@@ -207,5 +249,6 @@ export {
   SchemaResourceTypeAttribute,
   SchemaRelationship,
   // Functions
-  FetchSchemaFromDb
+  FetchSchemaFromDb,
+  InjectSchemaIntoDb
 };

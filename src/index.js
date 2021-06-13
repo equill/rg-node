@@ -7,10 +7,12 @@ console.log('Importing third-party modules');
 const neo4j = require("neo4j-driver");
 
 console.log('Importing local modules');
-const { ResourceType, FetchSchemaFromDb } = require("./schema");
+const { FetchSchemaFromDb, InjectSchemaIntoDb } = require("./schema");
 
+// Configs
 console.log('Importing configs');
 const config = require('./config').config;
+const { coreSchema } = require('./core-schema');
 
 
 // Configuration
@@ -27,7 +29,9 @@ console.log(`Configured the driver to connect to ${config.neo4j.hostname}`);
 
 // Startup
 
-FetchSchemaFromDb(driver);
+//FetchSchemaFromDb(driver);
+InjectSchemaIntoDb(driver, coreSchema);
+
 /*
  * Eventually a server will go in here.
  */
