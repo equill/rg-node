@@ -12,6 +12,7 @@
   },
   "files": [
     "schema.ts",
-    "core-schema.ts"
+    "core-schema.ts",
+    "index.ts"
   ]
 }

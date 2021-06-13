@@ -1,18 +1,16 @@
 // Top-level file that pulls the whole thing together.
-// Written directly in Javascript because Typescript spontaneously explodes
-// on contact with `import neo4j from 'neo4j-driver'`.
 
 // Imports
 console.log('Importing third-party modules');
-const neo4j = require("neo4j-driver");
+import neo4j from "neo4j-driver";
 
 console.log('Importing local modules');
-const { FetchSchemaFromDb, InjectSchemaIntoDb } = require("./schema");
+import { FetchSchemaFromDb, InjectSchemaIntoDb } from "./schema";
 
 // Configs
 console.log('Importing configs');
-const config = require('./config').config;
-const { coreSchema } = require('./core-schema');
+import { config } from './config';
+import { coreSchema } from './core-schema';
 
 
 // Configuration
