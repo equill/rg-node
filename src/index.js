@@ -1,3 +1,7 @@
+// Top-level file that pulls the whole thing together.
+// Written directly in Javascript because Typescript spontaneously explodes
+// on contact with `import neo4j from 'neo4j-driver'`.
+
 // Imports
 console.log('Importing third-party modules');
 const neo4j = require("neo4j-driver");
