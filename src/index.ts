@@ -5,7 +5,7 @@ console.log('Importing third-party modules');
 import neo4j from "neo4j-driver";
 
 console.log('Importing local modules');
-import { FetchSchemaFromDb, InjectSchemaIntoDb } from "./schema";
+import { FetchSchemaFromDb, EnsureUniquenessIndex } from "./schema";
 
 // Configs
 console.log('Importing configs');
@@ -27,8 +27,7 @@ console.log(`Configured the driver to connect to ${config.neo4j.hostname}`);
 
 // Startup
 
-//FetchSchemaFromDb(driver);
-InjectSchemaIntoDb(driver, coreSchema);
+EnsureUniquenessIndex(driver, coreSchema);
 
 /*
  * Eventually a server will go in here.
@@ -37,5 +36,4 @@ InjectSchemaIntoDb(driver, coreSchema);
 
 // Shutdown
 
-console.log('Closing the driver.');
-driver.close();
+console.log('At end of index.js');

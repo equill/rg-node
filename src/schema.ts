@@ -180,36 +180,79 @@ class SchemaRelationshipAttribute {
 
 // Functions and methods for interacting with the schema
 
+function EnsureUniquenessIndex(driver, subSchema) {
+  console.log(`Ensuring uniqueness constraint on attribute 'name' for label 'RgSchema'`);
+  const queryString = `CREATE CONSTRAINT ON (s:RgSchema) ASSERT s.name IS UNIQUE`;
+  console.log(`Using query string '${queryString}'`);
+
+  var session = driver.session();
+  session
+  .run(queryString)
+  .then(
+    result => {
+      result = true;
+      console.log(`Uniqueness constraint created on attribute 'name' for label 'RgSchema'`);
+      InjectSchemaIntoDb(driver, subSchema);
+    },
+    error => {
+      // Handle Neo4j errors
+      if (error.name === 'Neo4jError') {
+        // Hopefully it told us that the constraint is already there
+        if (error.code === 'Neo.ClientError.Schema.EquivalentSchemaRuleAlreadyExists') {
+          console.log(`Uniqueness constraint already exists on attribute 'name' for label 'RgSchema'`);
+          InjectSchemaIntoDb(driver, subSchema);
+        } else {
+          session.close();
+          // We didn't expect this error; log a detailed breakdown.
+          console.error(`Unknown Neo4j error received: ${error}`);
+          console.error(`Error code: ${error.code}`)
+          console.error(`Error name: ${error.name}`)
+          console.error(`Error message: ${error.message}`);
+          process.exit();
+        }
+      }
+      // Unhandled failure
+      else {
+        session.close();
+        // Fall back to generic error reporting
+        console.error(`Constraint enforcement produced an error of type ${typeof error}: ${error}`);
+        process.exit();
+      }
+    });
+}
+
 function InjectSchemaIntoDb(driver, schema: IncomingSchemaVersion) {
   console.log(`Attempting to inject version ${schema.version} of schema ${schema.name}`);
   const date = new Date;
   const timestamp = date.getTime();
+  const queryCreateSubschema = `CREATE (s:RgSchema {name: "${schema.name}", createddate: ${timestamp}}) RETURN s.name as name;`;
+  console.log(`Attempting to create subschema with query string '${queryCreateSubschema}'`);
 
   var session = driver.session();
   // Insert the parent schema object via an autocommit transaction,
   // and get a promise in return.
-  var insertSchemaParent = session.writeTransaction(async txc => {
+  var insertSchemaPromise = session.writeTransaction(async txc => {
     // More than one statement can be run here
-    var result = await txc.run(
-      `CREATE (s:RgSchema {name: "${schema.name}", createddate: ${timestamp}}) RETURN s.name as name;`
-    )
-    // Here because it's mandatory to return _something_.
-    return result.records.map(record => record.get('name'))
+    var result = await txc.run(queryCreateSubschema)
+    // Here because it's mandatory to return _something_ from a writeTransaction block.
+    //return result.records.map(record => record.get('name'))
+    return result
   })
   //
   // Consuming the resulting promise, also left here as a HOWTO:
-  insertSchemaParent
-    .then (namesArray => {
+  insertSchemaPromise
+  .then (
+    namesArray => {
       console.log(namesArray)
     },
-           error => {
+    error => {
       console.log(error);
       session.close();
     })
-    .catch(error => {
+    .catch (error => {
       console.log(error);
       session.close()
-    })
+    });
 }
 
     /*
@@ -218,6 +261,18 @@ function InjectSchemaIntoDb(driver, schema: IncomingSchemaVersion) {
     return svResult.records
   })
   */
+
+function EnsureSchemaIsCurrent(driver, schema: IncomingSchemaVersion) {
+  console.log(`Ensuring schema ${schema.name} is at version ${schema.version}`)
+  // Something tells me this code should be expecting a promise, not a boolean.
+  var result = EnsureUniquenessIndex(driver, schema);
+  console.log(`Type of result: '${typeof result}'. Value of result: '${result}'.`);
+  if (Boolean(result)) {
+    console.log('Successfully ensured the presence of a uniqueness index on the "name" attribute of RgSchema objects.');
+  } else {
+    console.error('Failed to ensure a uniqueness constraint. This is *bad*.');
+  }
+}
 
 function FetchSchemaFromDb(driver) {
   console.log('Attempting to fetch the schema.');
@@ -250,5 +305,5 @@ export {
   SchemaRelationship,
   // Functions
   FetchSchemaFromDb,
-  InjectSchemaIntoDb
+  EnsureUniquenessIndex
 };
