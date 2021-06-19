@@ -1,6 +1,6 @@
 // Incoming classes, for inserting new schemas
 
-class IncomingSchemaVersion {
+class IncomingSubSchemaVersion {
   readonly name: string;
   readonly version: number;
   readonly applyOrder: number;
@@ -180,7 +180,7 @@ class SchemaRelationshipAttribute {
 
 // Functions and methods for interacting with the schema
 
-function EnsureUniquenessIndex(driver, subSchema) {
+function EnsureUniquenessIndex(driver, coreSchema) {
   console.log(`Ensuring uniqueness constraint on attribute 'name' for label 'RgSchema'`);
   const queryString = `CREATE CONSTRAINT ON (s:RgSchema) ASSERT s.name IS UNIQUE`;
   console.log(`Using query string '${queryString}'`);
@@ -190,9 +190,8 @@ function EnsureUniquenessIndex(driver, subSchema) {
   .run(queryString)
   .then(
     result => {
-      result = true;
       console.log(`Uniqueness constraint created on attribute 'name' for label 'RgSchema'`);
-      InjectSchemaIntoDb(driver, subSchema);
+      CheckForSchemaRoot(driver, coreSchema);
     },
     error => {
       // Handle Neo4j errors
@@ -200,7 +199,7 @@ function EnsureUniquenessIndex(driver, subSchema) {
         // Hopefully it told us that the constraint is already there
         if (error.code === 'Neo.ClientError.Schema.EquivalentSchemaRuleAlreadyExists') {
           console.log(`Uniqueness constraint already exists on attribute 'name' for label 'RgSchema'`);
-          InjectSchemaIntoDb(driver, subSchema);
+          CheckForSchemaRoot(driver, coreSchema);
         } else {
           session.close();
           // We didn't expect this error; log a detailed breakdown.
@@ -221,73 +220,212 @@ function EnsureUniquenessIndex(driver, subSchema) {
     });
 }
 
-function InjectSchemaIntoDb(driver, schema: IncomingSchemaVersion) {
-  console.log(`Attempting to inject version ${schema.version} of schema ${schema.name}`);
+function CheckForSchemaRoot(driver, coreSchema: IncomingSubSchemaVersion) {
+  console.log(`Checking for root node of schema`);
   const date = new Date;
   const timestamp = date.getTime();
-  const queryCreateSubschema = `CREATE (s:RgSchema {name: "${schema.name}", createddate: ${timestamp}}) RETURN s.name as name;`;
-  console.log(`Attempting to create subschema with query string '${queryCreateSubschema}'`);
+  const qCreateSubschemaRoot = `MERGE (s:RgSchema {name: "root"})
+  ON CREATE SET s.createddate = ${timestamp}
+  RETURN s.name`;
+  console.log(`Ensuring presence of schema root, with query string '${qCreateSubschemaRoot}'`);
 
   var session = driver.session();
   // Insert the parent schema object via an autocommit transaction,
   // and get a promise in return.
   var insertSchemaPromise = session.writeTransaction(async txc => {
     // More than one statement can be run here
-    var result = await txc.run(queryCreateSubschema)
+    var result = await txc.run(qCreateSubschemaRoot)
     // Here because it's mandatory to return _something_ from a writeTransaction block.
-    //return result.records.map(record => record.get('name'))
     return result
   })
   //
-  // Consuming the resulting promise, also left here as a HOWTO:
+  // Consuming the resulting promise
   insertSchemaPromise
   .then (
     namesArray => {
-      console.log(namesArray)
+      session.close();
+      console.log(`Confirmed root is in place for subschema ${coreSchema.name}`);
+      CheckForSchemaVersions(driver, coreSchema);
     },
     error => {
-      console.log(error);
       session.close();
+      console.log(`Received error: '${error}'`);
+      console.log('Bailing out.');
+      process.exit();
     })
     .catch (error => {
-      console.log(error);
-      session.close()
+      session.close();
+      console.log(`Caught error: '${error}'`);
+      console.log('Bailing out.');
+      process.exit();
     });
 }
 
-    /*
-  var insertSchemaVersion = session.writeTransaction(async txc => {
-    var svResult = await txc.run(`MATCH (s:RgSchema {name: "${schema.name}"}) CREATE (s)-[:VERSION]->(v:RgSchemaVersion);`)
-    return svResult.records
-  })
-  */
-
-function EnsureSchemaIsCurrent(driver, schema: IncomingSchemaVersion) {
-  console.log(`Ensuring schema ${schema.name} is at version ${schema.version}`)
-  // Something tells me this code should be expecting a promise, not a boolean.
-  var result = EnsureUniquenessIndex(driver, schema);
-  console.log(`Type of result: '${typeof result}'. Value of result: '${result}'.`);
-  if (Boolean(result)) {
-    console.log('Successfully ensured the presence of a uniqueness index on the "name" attribute of RgSchema objects.');
-  } else {
-    console.error('Failed to ensure a uniqueness constraint. This is *bad*.');
-  }
+// Check whether there _are_ any versions.
+function CheckForSchemaVersions(driver, schema: IncomingSubSchemaVersion) {
+  console.log(`Checking for schema versions`);
+  const session = driver.session();
+  session
+    .run(`MATCH (:RgSchema {name: "root"})-[:VERSION]->(v:RgSchemaVersion) RETURN v.version;`)
+    .then(
+      result => {
+        session.close();
+        if (result.records.length > 0) {
+          console.log(`${result.records.length} schema versions found.`);
+          console.log('Now checking for a current schema.');
+          CheckForCurrentSchema(driver, schema);
+        } else {
+          console.log('No versions found; installing one with the core schema.');
+          InstallCurrentSchemaVersion(driver, schema);
+        }
+      },
+      error => {
+        session.close();
+        console.error(`Neo4j returned error '${error}'`);
+        console.error('Bailing out.');
+        process.exit();
+      })
+    .catch(error => {
+        session.close();
+        console.error(`Caught unhandled error '${error}'`);
+        console.error('Bailing out.');
+        process.exit();
+    });
 }
 
-function FetchSchemaFromDb(driver) {
-  console.log('Attempting to fetch the schema.');
-  var session = driver.session();
+function CheckForCurrentSchema(driver, schema: IncomingSubSchemaVersion) {
+  console.log('Checking whether a current schema has been designated.')
+  const session = driver.session();
   session
-    .run('MATCH (p:Category) RETURN p.name as name;')
-    .then(result => {
-      result.records.forEach(record => {
-        console.log(`Fetched record '${record.get('name')}'`)
+    .run('MATCH (:RgSchema {name: "root"})-[:VERSION]->(c:RgSchemaVersion) RETURN c.createddate AS version;')
+    .then(
+      result => {
+        session.close();
+        if (result.records[0]['version'] == undefined) {
+          console.log('Found no current schema. Installing one before proceeding further.');
+          InstallCurrentSchemaVersion(driver, schema);
+        } else if (result.records.length == 1) {
+          const version = result.records[0]['version'];
+          console.log(`Found current schema with version '${version}'`);
+          InstallSubschema(driver, schema, version);
+        } else {
+          console.log(`Found ${result.records.length} current schemas. Something is *badly* wrong. Bailing out.`);
+          process.exit();
+        }
+      },
+      error => {
+        session.close();
+        console.error(`Neo4j returned error '${error}'`);
+        console.error('Bailing out.');
+        process.exit();
       })
+}
+
+function InstallCurrentSchemaVersion(driver, schema: IncomingSubSchemaVersion) {
+  const date = new Date;
+  const timestamp = date.getTime();
+
+  // Accumulate the query string
+  var queryString = `MATCH (r:RgSchema {name: "root"})
+CREATE (r)-[:VERSION]->(v:RgSchemaVersion {createddate: ${timestamp}}),
+(r)-[:CURRENT_VERSION]->(v)`;
+  console.log(`Attempting to install new current schema version, with this query string:\n${queryString}`);
+  const session = driver.session();
+  session
+    .run(queryString)
+    .then(
+      result => {
+        console.log('New current schema installed.');
+        InstallSubschema(driver, schema, timestamp);
+      },
+      error => {
+        session.close();
+        console.error(`Neo4j returned error '${error}'. Bailing out.`);
+        process.exit();
+      })
+}
+
+function InstallSubschema(driver, schema: IncomingSubSchemaVersion, version: Number) {
+  console.log(`Attempting to inject version ${schema.version} of schema ${schema.name}`);
+
+  var promises = schema.resourceTypes.map(rType => {
+    // Install the resourcetype itself
+    var queryString = `MATCH (r:RgSchema {name: "root"})-[:VERSION]->(v:RgSchemaVersion {createddate: ${version}})
+CREATE (v)-[:HAS]->(t:RgResourceType {name: "${rType.name}", dependent: ${rType.dependent}})`;
+    // Now add its attributes
+    const attrlen = rType.attributes.length;
+    for (let i = 0; i < attrlen; i++) {
+      let values = null;
+      let attr = rType.attributes[i];
+      if (attr.values && attr.values != []) {
+        values = attr.values.join(',');
+      }
+      queryString += `,\n(t)-[:HAS]->(:RgResourcetypeAttribute {name: "${attr.name}", description: "${attr.description}"})`
+    }
+
+    console.log(`Attempting to install resourcetypes, with this query string:\n${queryString}`);
+    return driver.session().run(queryString);
+  });
+
+  Promise.all(promises)
+  .then(
+    result => {
+      console.log(`Seems to have worked. Installing relationships`);
+      InstallSchemaRelationships(driver, schema, version);
+    },
+    error => {
+      console.log(`Received error: '${error}'`);
+      console.log('Bailing out.');
+      process.exit();
+    })
+    .catch (error => {
+      console.log(`Caught error: '${error}'`);
+      console.log('Bailing out.');
+      process.exit();
+    });
+}
+
+function InstallSchemaRelationships(driver, subSchema: IncomingSubSchemaVersion, schemaversion: Number) {
+  console.log(`Installing relationships for schema ${subSchema.name}`);
+
+  var promises = subSchema.relationships.map(rel => {
+    // Install the relationship itself
+    var queryString = `MATCH (:RgSchema {name: "root"})-[:VERSION]->(v:RgSchemaVersion {createddate: ${schemaversion}})-[:HAS]->(s:RgResourceType {name: "${rel.sourceType}"}),
+(v)-[:HAS]->(t:RgResourceType {name: "${rel.targetType}"})
+CREATE (s)<-[:SOURCE]-(r:RgRelationship {name: "${rel.name}", cardinality: "${rel.cardinality}", dependent: ${rel.dependent}, notes: "${rel.notes}"})-[:TARGET]->(t)`;
+
+    // Now add its attributes
+    const attrlen = rel.attributes.length;
+    for (let i = 0; i < attrlen; i++) {
+      let values = null;
+      if (rel.attributes[i].values && rel.attributes[i].values != []) {
+        values = rel.attributes[i].values.join(',')
+      }
+      queryString += `,\n(r)-[:HAS]->(:RgRelationshipAttribute {name: "${rel.attributes[i].name}", description: "${rel.attributes[i].description}", values: "${values}"})`;
+    }
+    console.log(`Attempting to install relationship ${rel.name} with query string\n${queryString}`);
+
+    return driver.session().run(queryString);
+  });
+
+  Promise.all(promises)
+  .then(
+    results => {
+      results.forEach(result => {
+        console.log(`Result received for relationship '${result.records}'`);
+      });
+      console.log('All done; exiting.');
+      process.exit();
+    },
+    error => {
+      console.log(`Received error ${error}`);
+      console.error(`Error code: ${error.code}`)
+      console.error(`Error name: ${error.name}`)
+      console.log(`Received error ${error.message}`);
     })
     .catch(error => {
-      console.log(error);
-    })
-    .then(session.close());
+      console.log(`Caught error ${error}`)
+    });
 }
 
 
@@ -295,7 +433,7 @@ export {
   // Types
   SchemaCardinality,
   // Classes
-  IncomingSchemaVersion,
+  IncomingSubSchemaVersion,
   IncomingResourceType,
   IncomingSchemaRelationship,
   IncomingSchemaRelationshipAttribute,
@@ -304,6 +442,5 @@ export {
   SchemaResourceTypeAttribute,
   SchemaRelationship,
   // Functions
-  FetchSchemaFromDb,
   EnsureUniquenessIndex
 };

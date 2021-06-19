@@ -1,12 +1,12 @@
 import {
-  IncomingSchemaVersion,
+  IncomingSubSchemaVersion,
   IncomingResourceType,
   SchemaResourceTypeAttribute,
   IncomingSchemaRelationship,
   IncomingSchemaRelationshipAttribute,
 } from './schema';
 
-const coreSchema = new IncomingSchemaVersion({
+const coreSchema = new IncomingSubSchemaVersion({
   name: "core",
   version: 1,
   applyOrder: 0,
@@ -72,7 +72,7 @@ const coreSchema = new IncomingSchemaVersion({
     new IncomingSchemaRelationship({
       name: "Groups",
       sourceType: "any",
-      targetType: "any",
+      targetType: "groups",
       cardinality: "many:many",
       dependent: false,
       notes: "Anything can be put into a group.",
