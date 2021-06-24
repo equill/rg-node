@@ -430,17 +430,12 @@ CREATE (s)<-[:SOURCE]-(r:RgRelationship {name: "${rel.name}", cardinality: "${re
 
 
 export {
-  // Types
-  SchemaCardinality,
   // Classes
   IncomingSubSchemaVersion,
   IncomingResourceType,
   IncomingSchemaRelationship,
   IncomingSchemaRelationshipAttribute,
-  SchemaVersion,
-  SchemaResourceType,
   SchemaResourceTypeAttribute,
-  SchemaRelationship,
   // Functions
   EnsureUniquenessIndex
 };
