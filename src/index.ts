@@ -5,7 +5,7 @@ console.log('Importing third-party modules');
 import neo4j from "neo4j-driver";
 
 console.log('Importing local modules');
-import { EnsureUniquenessIndex } from "./schema";
+import { EnsureUniquenessIndex } from "./schema-install";
 
 // Configs
 console.log('Importing configs');

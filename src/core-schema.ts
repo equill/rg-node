@@ -4,7 +4,7 @@ import {
   SchemaResourceTypeAttribute,
   IncomingSchemaRelationship,
   IncomingSchemaRelationshipAttribute,
-} from './schema';
+} from './schema-install';
 
 const coreSchema = new IncomingSubSchemaVersion({
   name: "core",
