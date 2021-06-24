@@ -6,6 +6,10 @@ import {
   SchemaResourceTypeAttribute,
 } from './classes';
 
+import {
+  GetSchemaFromDb
+} from './schema-load';
+
 
 // Functions and methods for interacting with the schema
 
@@ -137,7 +141,7 @@ function CheckForCurrentSchema(driver, schema: IncomingSubSchemaVersion) {
         } else if (result.records.length == 1 && typeof(version)) {
           // We're good; load the schema
           console.log(`Found current schema with version '${version}'`);
-          process.exit();
+          GetSchemaFromDb(driver);
         } else {
           console.log(`Found ${result.records.length} current schemas. Something is *badly* wrong. Bailing out.`);
           process.exit();
@@ -244,8 +248,7 @@ CREATE (s)<-[:SOURCE]-(r:RgRelationship {name: "${rel.name}", cardinality: "${re
       results.forEach(result => {
         console.log(`Result received for relationship '${result.records}'`);
       });
-      console.log('All done; exiting.');
-      process.exit();
+      GetSchemaFromDb(driver);
     },
     error => {
       console.log(`Received error ${error}`);
