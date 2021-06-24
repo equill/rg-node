@@ -126,17 +126,18 @@ function CheckForCurrentSchema(driver, schema: IncomingSubSchemaVersion) {
   console.log('Checking whether a current schema has been designated.')
   const session = driver.session();
   session
-    .run('MATCH (:RgSchema {name: "root"})-[:VERSION]->(c:RgSchemaVersion) RETURN c.createddate AS version;')
+    .run('MATCH (:RgSchema {name: "root"})-[:CURRENT_VERSION]->(c:RgSchemaVersion) RETURN c.createddate AS version;')
     .then(
       result => {
         session.close();
-        if (result.records[0]['version'] == undefined) {
+        let version = result.records[0].get('version')
+        if (version == undefined) {
           console.log('Found no current schema. Installing one before proceeding further.');
           InstallCurrentSchemaVersion(driver, schema);
-        } else if (result.records.length == 1) {
-          const version = result.records[0]['version'];
+        } else if (result.records.length == 1 && typeof(version)) {
+          // We're good; load the schema
           console.log(`Found current schema with version '${version}'`);
-          InstallSubschema(driver, schema, version);
+          process.exit();
         } else {
           console.log(`Found ${result.records.length} current schemas. Something is *badly* wrong. Bailing out.`);
           process.exit();
@@ -251,9 +252,11 @@ CREATE (s)<-[:SOURCE]-(r:RgRelationship {name: "${rel.name}", cardinality: "${re
       console.error(`Error code: ${error.code}`)
       console.error(`Error name: ${error.name}`)
       console.log(`Received error ${error.message}`);
+      process.exit();
     })
     .catch(error => {
       console.log(`Caught error ${error}`)
+      process.exit();
     });
 }
 
