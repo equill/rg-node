@@ -11,6 +11,7 @@
     "allowJs": false,
   },
   "files": [
+    "classes.ts",
     "schema-install.ts",
     "core-schema.ts",
     "index.ts"

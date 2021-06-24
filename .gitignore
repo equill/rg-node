@@ -1,4 +1,6 @@
 node_modules/
+classes.js
 core-schema.js
 index.js
 schema-install.js
+schema-load.js
