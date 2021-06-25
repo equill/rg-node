@@ -1,5 +1,6 @@
 node_modules/
 classes.js
+common.js
 core-schema.js
 index.js
 schema-install.js

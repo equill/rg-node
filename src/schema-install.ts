@@ -7,6 +7,11 @@ import {
 } from './classes';
 
 import {
+  ErrorAndExit,
+  Neo4jUnhandledError
+} from './common';
+
+import {
   GetSchemaFromDb
 } from './schema-load';
 
@@ -35,20 +40,13 @@ function EnsureUniquenessIndex(driver, coreSchema) {
           CheckForSchemaRoot(driver, coreSchema);
         } else {
           session.close();
-          // We didn't expect this error; log a detailed breakdown.
-          console.error(`Unknown Neo4j error received: ${error}`);
-          console.error(`Error code: ${error.code}`)
-          console.error(`Error name: ${error.name}`)
-          console.error(`Error message: ${error.message}`);
-          process.exit();
+          Neo4jUnhandledError(error)
         }
       }
       // Unhandled failure
       else {
         session.close();
-        // Fall back to generic error reporting
-        console.error(`Constraint enforcement produced an error of type ${typeof error}: ${error}`);
-        process.exit();
+        ErrorAndExit(error);
       }
     });
 }
@@ -82,15 +80,11 @@ function CheckForSchemaRoot(driver, coreSchema: IncomingSubSchemaVersion) {
     },
     error => {
       session.close();
-      console.log(`Received error: '${error}'`);
-      console.log('Bailing out.');
-      process.exit();
+      ErrorAndExit(error)
     })
     .catch (error => {
       session.close();
-      console.log(`Caught error: '${error}'`);
-      console.log('Bailing out.');
-      process.exit();
+      ErrorAndExit(error, true)
     });
 }
 
@@ -114,15 +108,11 @@ function CheckForSchemaVersions(driver, schema: IncomingSubSchemaVersion) {
       },
       error => {
         session.close();
-        console.error(`Neo4j returned error '${error}'`);
-        console.error('Bailing out.');
-        process.exit();
+        ErrorAndExit(error)
       })
     .catch(error => {
         session.close();
-        console.error(`Caught unhandled error '${error}'`);
-        console.error('Bailing out.');
-        process.exit();
+        ErrorAndExit(error, true)
     });
 }
 
@@ -149,9 +139,7 @@ function CheckForCurrentSchema(driver, schema: IncomingSubSchemaVersion) {
       },
       error => {
         session.close();
-        console.error(`Neo4j returned error '${error}'`);
-        console.error('Bailing out.');
-        process.exit();
+        ErrorAndExit(error)
       })
 }
 
@@ -174,8 +162,7 @@ CREATE (r)-[:VERSION]->(v:RgSchemaVersion {createddate: ${timestamp}}),
       },
       error => {
         session.close();
-        console.error(`Neo4j returned error '${error}'. Bailing out.`);
-        process.exit();
+        ErrorAndExit(error);
       })
 }
 
@@ -208,14 +195,10 @@ CREATE (v)-[:HAS]->(t:RgResourceType {name: "${rType.name}", dependent: ${rType.
       InstallSchemaRelationships(driver, schema, version);
     },
     error => {
-      console.log(`Received error: '${error}'`);
-      console.log('Bailing out.');
-      process.exit();
+      ErrorAndExit(error);
     })
     .catch (error => {
-      console.log(`Caught error: '${error}'`);
-      console.log('Bailing out.');
-      process.exit();
+      ErrorAndExit(error, true);
     });
 }
 
@@ -251,15 +234,10 @@ CREATE (s)<-[:SOURCE]-(r:RgRelationship {name: "${rel.name}", cardinality: "${re
       GetSchemaFromDb(driver);
     },
     error => {
-      console.log(`Received error ${error}`);
-      console.error(`Error code: ${error.code}`)
-      console.error(`Error name: ${error.name}`)
-      console.log(`Received error ${error.message}`);
-      process.exit();
+      Neo4jUnhandledError(error);
     })
     .catch(error => {
-      console.log(`Caught error ${error}`)
-      process.exit();
+      ErrorAndExit(error);
     });
 }
 

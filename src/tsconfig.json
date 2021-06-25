@@ -12,6 +12,7 @@
   },
   "files": [
     "classes.ts",
+    "common.ts",
     "schema-install.ts",
     "schema-load.ts",
     "core-schema.ts",
