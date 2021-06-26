@@ -66,18 +66,9 @@ function CheckForSchemaRoot(driver,
   RETURN s.name`;
   logger.info(`Ensuring presence of schema root, with query string '${qCreateSubschemaRoot}'`);
 
-  var session = driver.session();
-  // Insert the parent schema object via an autocommit transaction,
-  // and get a promise in return.
-  var insertSchemaPromise = session.writeTransaction(async txc => {
-    // More than one statement can be run here
-    var result = await txc.run(qCreateSubschemaRoot)
-    // Here because it's mandatory to return _something_ from a writeTransaction block.
-    return result
-  })
-  //
-  // Consuming the resulting promise
-  insertSchemaPromise
+  const session = driver.session();
+  session
+  .run(qCreateSubschemaRoot)
   .then (
     namesArray => {
       session.close();
