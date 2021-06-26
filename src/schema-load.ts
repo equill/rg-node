@@ -1,8 +1,10 @@
+import * as bunyan from 'bunyan';
+
 // Fetch the *current* version of the schema from the db
-function GetSchemaFromDb(driver) {
-  console.log('Fetching the current schema from the database.');
+function GetSchemaFromDb(driver, logger: bunyan.Logger) {
+  logger.info('Fetching the current schema from the database.');
   const queryString = `MATCH (:RgSchema {name: "root"})-[:CURRENT_VERSION]->(v:RgSchemaVersion)`;
-  console.log(`Using query string ${queryString}`);
+  logger.debug(`Using query string ${queryString}`);
   process.exit();
 }
 
